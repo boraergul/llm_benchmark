@@ -5,6 +5,7 @@ import requests
 import os
 import subprocess
 import sys
+from datetime import datetime
 
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
@@ -262,6 +263,7 @@ def run_benchmark(model_name, csv_file="benchmark_results.csv", timeout=300):
 
 def save_results(model_name, model_info, cpu_info, gpu_info, results, csv_file="benchmark_results.csv"):
     fields = [
+        "timestamp",
         "model_name", 
         "param_size", 
         "quantization", 
@@ -279,8 +281,10 @@ def save_results(model_name, model_info, cpu_info, gpu_info, results, csv_file="
         "response_preview"
     ]
     
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     # Her sonuca model ismini, donanım, bellek ve işlemci bilgilerini ekle
     for r in results:
+        r["timestamp"] = current_time
         r["model_name"] = model_name
         r["param_size"] = model_info["param_size"]
         r["quantization"] = model_info["quantization"]
@@ -360,7 +364,6 @@ def save_results(model_name, model_info, cpu_info, gpu_info, results, csv_file="
     print(f"📊 Tüm sonuçlar başarıyla '{csv_file}' dosyasına kaydedildi!")
 
 if __name__ == "__main__":
-    from datetime import datetime
     models = get_local_models()
     selected_models = select_model(models)
     
