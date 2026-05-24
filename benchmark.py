@@ -131,6 +131,30 @@ def select_model(models):
         except ValueError:
             print("Lütfen geçerli bir sayı girin.")
 
+def get_model_params(model_name, category):
+    """Belirli bir model için top_p, top_k ve thinking_active (düşünme modu) ayarlarını döner."""
+    # Varsayılan değerler (Standart Llama/Qwen)
+    top_p = 0.90
+    top_k = 40
+    thinking_active = False
+    
+    model_lower = model_name.lower()
+    
+    # Gemma 4 serisi ise
+    if "gemma4" in model_lower:
+        top_p = 0.95
+        top_k = 64
+        # Akıl yürütme (Reasoning) ve Kod yazma (Reasoning/Coding) sorularında düşünme modunu etkinleştir
+        if category in ["Reasoning", "Reasoning/Coding"]:
+            thinking_active = True
+            
+    # DeepSeek R1 serisi ise
+    elif "r1" in model_lower:
+        # DeepSeek R1 modellerinde düşünme (reasoning) yerleşiktir
+        thinking_active = True
+        
+    return top_p, top_k, thinking_active
+
 def run_benchmark(model_name, csv_file="benchmark_results.csv", timeout=300):
     questions = load_questions()
     results = []
@@ -145,15 +169,22 @@ def run_benchmark(model_name, csv_file="benchmark_results.csv", timeout=300):
     for q in questions:
         print(f"⏳ [{q['id']}] {q['category']} testi koşuluyor...")
         
+        top_p, top_k, thinking_active = get_model_params(model_name, q["category"])
+        
         payload = {
             "model": model_name,
             "prompt": q["prompt"],
             "stream": False,
             "options": {
                 "temperature": q["temperature"],
+                "top_p": top_p,
+                "top_k": top_k,
                 "num_predict": 2048
             }
         }
+        
+        if thinking_active and "gemma4" in model_name.lower():
+            payload["system"] = "<|think|>"
         
         start_time = time.time()
         try:
@@ -193,6 +224,9 @@ def run_benchmark(model_name, csv_file="benchmark_results.csv", timeout=300):
                     "id": q["id"],
                     "category": q["category"],
                     "temperature": q["temperature"],
+                    "top_p": top_p,
+                    "top_k": top_k,
+                    "thinking_active": thinking_active,
                     "duration_sec": round(duration_sec, 2),
                     "tokens_produced": eval_count,
                     "tokens_per_sec": round(tokens_per_second, 2),
@@ -213,6 +247,9 @@ def run_benchmark(model_name, csv_file="benchmark_results.csv", timeout=300):
                     "id": q["id"],
                     "category": q["category"],
                     "temperature": q["temperature"],
+                    "top_p": top_p,
+                    "top_k": top_k,
+                    "thinking_active": thinking_active,
                     "duration_sec": 0.0,
                     "tokens_produced": 0,
                     "tokens_per_sec": 0.0,
@@ -228,6 +265,9 @@ def run_benchmark(model_name, csv_file="benchmark_results.csv", timeout=300):
                 "id": q["id"],
                 "category": q["category"],
                 "temperature": q["temperature"],
+                "top_p": top_p,
+                "top_k": top_k,
+                "thinking_active": thinking_active,
                 "duration_sec": float(timeout) if timeout is not None else 0.0,
                 "tokens_produced": 0,
                 "tokens_per_sec": 0.0,
@@ -240,6 +280,9 @@ def run_benchmark(model_name, csv_file="benchmark_results.csv", timeout=300):
                 "id": q["id"],
                 "category": q["category"],
                 "temperature": q["temperature"],
+                "top_p": top_p,
+                "top_k": top_k,
+                "thinking_active": thinking_active,
                 "duration_sec": 0.0,
                 "tokens_produced": 0,
                 "tokens_per_sec": 0.0,
@@ -275,6 +318,9 @@ def save_results(model_name, model_info, cpu_info, gpu_info, results, csv_file="
         "id", 
         "category", 
         "temperature", 
+        "top_p",
+        "top_k",
+        "thinking_active",
         "duration_sec", 
         "tokens_produced", 
         "tokens_per_sec", 
